@@ -15,24 +15,180 @@
 </div><div><div class="hint" id="jmt-paylabel">Estimated monthly mortgage payment</div><div class="big" id="jmt-payment">—</div><div class="stat"><span>Mortgage before insurance</span><strong id="jmt-base">—</strong></div><div class="stat"><span>Estimated mortgage default insurance premium</span><strong id="jmt-insurance">—</strong></div><div class="stat"><span>Estimated financed mortgage</span><strong id="jmt-total">—</strong></div><div class="stat"><span>Estimated property tax per payment</span><strong id="jmt-taxpayment">—</strong></div><div class="stat"><span>Mortgage + property tax per payment</span><strong id="jmt-combined">—</strong></div><p class="note">Biweekly = 26 payments/year. Accelerated biweekly = half the regular monthly payment, paid 26 times/year. Property tax is spread evenly over the selected payment frequency.</p></div></div></div>
 <p class="note">For general planning only. Assumes a fixed mortgage rate, nominal annual interest compounded semi-annually, and a constant rate over the full amortization. Actual lender payments, insurance eligibility and premiums, property taxes, closing costs and qualification requirements may differ. Mortgage default insurance is estimated for eligible owner-occupied purchases using common premium tiers; provincial sales tax on insurance premiums, if applicable, is not included. A 30-year insured amortization may be available only to eligible borrowers; check with a mortgage professional. This is not a mortgage approval or financial advice.</p>
 <div class="foot"><div class="footrow"><div><div class="signature">June Gill</div><small>Real Estate Agent</small><small>Royal LePage ProAlliance Realty</small></div><div class="contact"><div>☎ <a href="tel:+12897951111">289-795-1111</a></div><div>🌐 <a href="https://www.junegillrealestate.ca/">junegillrealestate.ca</a></div></div><div><img src="https://kunversion-accounts.s3.amazonaws.com/marketing-center/royallepageproalliancerealty1948/a3094c76-46b4-4cbf-a94b-a778b226e130.png" alt="Royal LePage ProAlliance Realty logo"></div></div><div class="regions">BELLEVILLE &bull; PRINCE EDWARD COUNTY &bull; QUINTE WEST</div></div>
+
 <script>
-(function(){
-var root=document.getElementById('june-mortgage-tool');if(!root)return;
-function el(id){return root.querySelector('#jmt-'+id)}
-function money(n){return Number.isFinite(n)?new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD',maximumFractionDigits:2}).format(n):'—'}
-function monthlyPayment(principal,rate,years){var r=Math.pow(1+rate/200,1/6)-1,n=years*12;return r===0?principal/n:principal*r/(1-Math.pow(1+r,-n))}
-function calc(){var price=+el('price').value,down=+el('down').value,rate=+el('rate').value,years=+el('years').value,tax=+el('tax').value,freq=el('frequency').value;el('warning').textContent='';
-if(!Number.isFinite(price)||price<=0||down<0||down>=price||rate<0||rate>30||tax<0){el('warning').textContent='Please enter a valid price, down payment, rate and property tax.';['payment','base','insurance','total','taxpayment','combined'].forEach(function(x){el(x).textContent='—'});return}
-var pct=down/price;el('downpct').textContent=(pct*100).toFixed(1)+'% down payment';var min=price<=500000?price*.05:price<1500000?25000+(price-500000)*.1:price*.2;
-if(down+0.001<min){el('warning').textContent='Down payment is below the typical minimum of '+money(min)+' for this purchase price. Results are illustrative only.'}
-if(years===30&&pct<.2){el('warning').textContent+=' Confirm eligibility for a 30-year insured amortization with your lender.'}
-var base=price-down,premium=0;
-if(pct<.2&&price<1500000){var premiumRate=pct>=.15?.028:pct>=.10?.031:pct>=.05?.04:0;if(premiumRate===0){el('warning').textContent+=' Insurance eligibility cannot be estimated with this down payment.'}else premium=base*premiumRate}
-if(pct<.2&&price>=1500000){el('warning').textContent+=' Mortgage default insurance is generally unavailable at this purchase price; a 20% down payment is typically required.'}
-var total=base+premium,monthly=monthlyPayment(total,rate,years),payment=freq==='monthly'?monthly:freq==='biweekly'?monthly*12/26:monthly/2,periods=freq==='monthly'?12:26,taxpay=tax/periods;
-el('paylabel').textContent='Estimated '+(freq==='monthly'?'monthly':freq==='biweekly'?'biweekly':'accelerated biweekly')+' mortgage payment';el('payment').textContent=money(payment);el('base').textContent=money(base);el('insurance').textContent=money(premium);el('total').textContent=money(total);el('taxpayment').textContent=money(taxpay);el('combined').textContent=money(payment+taxpay)
-}
-root.querySelectorAll('input,select').forEach(function(x){x.addEventListener('input',calc);x.addEventListener('change',calc)});calc();
+(function () {
+  var root = document.getElementById('june-mortgage-tool');
+  if (!root) return;
+
+  function el(id) {
+    return root.querySelector('#jmt-' + id);
+  }
+
+  function money(n) {
+    return Number.isFinite(n)
+      ? new Intl.NumberFormat('en-CA', {
+          style: 'currency',
+          currency: 'CAD'
+        }).format(n)
+      : '—';
+  }
+
+  function payment(principal, annualRate, years, periods) {
+    var periodicRate =
+      Math.pow(1 + annualRate / 200, 2 / periods) - 1;
+
+    var count = years * periods;
+
+    if (periodicRate === 0) {
+      return principal / count;
+    }
+
+    return principal * periodicRate /
+      (1 - Math.pow(1 + periodicRate, -count));
+  }
+
+  function clearResults() {
+    ['payment', 'base', 'insurance', 'total',
+     'taxpayment', 'combined'].forEach(function(id) {
+      el(id).textContent = '—';
+    });
+  }
+
+  function calculate() {
+    var price = Number(el('price').value);
+    var down = Number(el('down').value);
+    var rate = Number(el('rate').value);
+    var years = Number(el('years').value);
+    var tax = Number(el('tax').value);
+    var frequency = el('frequency').value;
+
+    var warnings = [];
+    el('warning').textContent = '';
+
+    if (
+      !el('price').value ||
+      !el('down').value ||
+      !el('rate').value ||
+      !el('tax').value ||
+      !Number.isFinite(price) ||
+      !Number.isFinite(down) ||
+      !Number.isFinite(rate) ||
+      !Number.isFinite(tax) ||
+      price <= 0 ||
+      down < 0 ||
+      down >= price ||
+      rate < 0 ||
+      rate > 30 ||
+      tax < 0
+    ) {
+      el('warning').textContent =
+        'Please enter valid purchase, down payment, interest and tax amounts.';
+      clearResults();
+      return;
+    }
+
+    var downPercent = down / price;
+    el('downpct').textContent =
+      (downPercent * 100).toFixed(1) + '% down payment';
+
+    var minimumDown;
+
+    if (price <= 500000) {
+      minimumDown = price * 0.05;
+    } else if (price < 1500000) {
+      minimumDown = 25000 + (price - 500000) * 0.10;
+    } else {
+      minimumDown = price * 0.20;
+    }
+
+    if (down + 0.001 < minimumDown) {
+      el('warning').textContent =
+        'Minimum down payment is generally ' +
+        money(minimumDown) +
+        ' for this purchase price.';
+      clearResults();
+      return;
+    }
+
+    var base = price - down;
+    var premium = 0;
+    var insured = downPercent < 0.20;
+
+    if (insured) {
+      if (price >= 1500000) {
+        el('warning').textContent =
+          'Mortgage default insurance is generally unavailable at this price.';
+        clearResults();
+        return;
+      }
+
+      var premiumRate =
+        downPercent >= 0.15 ? 0.028 :
+        downPercent >= 0.10 ? 0.031 :
+        0.04;
+
+      if (years === 30) {
+        premiumRate += 0.002;
+        warnings.push(
+          '30-year insured mortgages require eligibility as a first-time buyer or purchaser of a newly built home.'
+        );
+      }
+
+      premium = base * premiumRate;
+
+      warnings.push(
+        'Estimated Ontario sales tax on mortgage insurance: ' +
+        money(premium * 0.08) +
+        '. This is normally paid separately at closing and is not included in the mortgage.'
+      );
+    }
+
+    var total = base + premium;
+
+    var monthly = payment(total, rate, years, 12);
+    var regularBiweekly = payment(total, rate, years, 26);
+    var acceleratedBiweekly = monthly / 2;
+
+    var selectedPayment;
+    var periods;
+    var label;
+
+    if (frequency === 'monthly') {
+      selectedPayment = monthly;
+      periods = 12;
+      label = 'Estimated monthly mortgage payment';
+    } else if (frequency === 'biweekly') {
+      selectedPayment = regularBiweekly;
+      periods = 26;
+      label = 'Estimated biweekly mortgage payment';
+    } else {
+      selectedPayment = acceleratedBiweekly;
+      periods = 26;
+      label = 'Estimated accelerated biweekly mortgage payment';
+    }
+
+    var taxPayment = tax / periods;
+
+    el('paylabel').textContent = label;
+    el('payment').textContent = money(selectedPayment);
+    el('base').textContent = money(base);
+    el('insurance').textContent = money(premium);
+    el('total').textContent = money(total);
+    el('taxpayment').textContent = money(taxPayment);
+    el('combined').textContent =
+      money(selectedPayment + taxPayment);
+
+    el('warning').textContent = warnings.join(' ');
+  }
+
+  root.querySelectorAll('input, select').forEach(function(field) {
+    field.addEventListener('input', calculate);
+    field.addEventListener('change', calculate);
+  });
+
+  calculate();
 })();
 </script>
+
 </div>
